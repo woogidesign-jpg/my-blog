@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>마크다운 변환기 테스트</title>
+  <style>
+    body { margin: 0; padding: 16px; background: #fff; color: #1f2328; font: 14px/1.5 system-ui, sans-serif; }
+    h1 { font-size: 1.25rem; }
+    .pass { color: #1a7f37; }
+    .fail { color: #cf222e; }
+    pre { background: #f6f8fa; padding: 8px; overflow-x: auto; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>마크다운 변환기 테스트</h1>
+  <p id="summary">실행 중…</p>
+  <ol id="results"></ol>
+
+  <script type="module">
+    import { parseMarkdown } from '../js/markdown.js';
+    import { parseFrontmatter } from '../js/frontmatter.js';
+
+    const cases = [
+      ['제목', '# 안녕', '<h1>안녕</h1>'],
+      ['닫는 #은 공백 뒤에만 제거', '## C#', '<h2>C#</h2>'],
+      ['문단과 강조', '**굵게** *기울임* ~~취소~~', '<p><strong>굵게</strong> <em>기울임</em> <del>취소</del></p>'],
+      ['단어 안 밑줄 유지', 'snake_case_name', '<p>snake_case_name</p>'],
+      ['인라인 코드 안의 문법 무시', '`**x**`', '<p><code>**x**</code></p>'],
+      ['강제 줄바꿈', 'a  \nb', '<p>a<br>\nb</p>'],
+      ['CRLF 입력', '# 제목\r\n\r\n본문', '<h1>제목</h1>\n<p>본문</p>'],
+      ['HTML 태그 이스케이프', '<script>alert(1)<\/script>', '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>'],
+      ['javascript: 링크 차단', '[클릭](javascript:alert(1))', '<p><a href="#">클릭</a>)</p>'],
+      ['JavaScript: 대소문자 섞어도 차단', '[x](JaVaScRiPt:alert)', '<p><a href="#">x</a></p>'],
+      ['data: 이미지 차단', '![a](data:text/html,x)', '<p><img src="#" alt="a" loading="lazy"></p>'],
+      ['외부 링크', '[MDN](https://developer.mozilla.org)',
+        '<p><a href="https://developer.mozilla.org" target="_blank" rel="noopener noreferrer">MDN</a></p>'],
+      ['상대 링크', '[글](post.html?slug=a&b=c)', '<p><a href="post.html?slug=a&amp;b=c">글</a></p>'],
+      ['링크 URL의 밑줄은 강조되지 않음', '[a](https://x.com/a_b_c)',
+        '<p><a href="https://x.com/a_b_c" target="_blank" rel="noopener noreferrer">a</a></p>'],
+      ['이미지 alt의 따옴표 이스케이프', '![a"b](x.png)', '<p><img src="x.png" alt="a&quot;b" loading="lazy"></p>'],
+      ['코드 블록', '```js\nconst a = 1 < 2; // **x**\n```',
+        '<pre><code class="language-js">const a = 1 &lt; 2; // **x**</code></pre>'],
+      ['중첩 목록', '- a\n  - b\n- c', '<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>'],
+      ['종류가 다른 목록은 분리', '- a\n\n1. b', '<ul><li>a</li></ul><ol><li>b</li></ol>'],
+      ['순서 있는 목록 시작 번호', '3. a\n4. b', '<ol start="3"><li>a</li><li>b</li></ol>'],
+      ['체크리스트', '- [x] 완료', '<ul><li class="task"><input type="checkbox" disabled checked> 완료</li></ul>'],
+      ['인용문', '> **a**\n> b', '<blockquote>\n<p><strong>a</strong>\nb</p>\n</blockquote>'],
+      ['수평선', 'a\n\n---', '<p>a</p>\n<hr>'],
+      ['표', '| a | b |\n|:--|--:|\n| 1 | 2 |',
+        '<div class="table-wrap"><table><thead><tr><th style="text-align:left">a</th><th style="text-align:right">b</th></tr></thead>'
+        + '<tbody><tr><td style="text-align:left">1</td><td style="text-align:right">2</td></tr></tbody></table></div>'],
+      ['NUL 문자 제거', 'a\u00000\u0000b', '<p>a0b</p>'],
+    ];
+
+    const frontmatterCases = [
+      ['front matter 파싱', '---\ntitle: "제목"\ntags: [a, b]\n---\n본문',
+        { meta: { title: '제목', tags: ['a', 'b'] }, body: '본문' }],
+      ['front matter 없음', '본문만', { meta: {}, body: '본문만' }],
+    ];
+
+    const results = document.getElementById('results');
+    let failed = 0;
+
+    function report(name, ok, expected, actual) {
+      const li = document.createElement('li');
+      li.className = ok ? 'pass' : 'fail';
+      li.textContent = `${ok ? '✔' : '✘'} ${name}`;
+      if (!ok) {
+        failed++;
+        const pre = document.createElement('pre');
+        pre.textContent = `기대값:\n${expected}\n\n실제값:\n${actual}`;
+        li.append(pre);
+      }
+      results.append(li);
+    }
+
+    for (const [name, input, expected] of cases) {
+      const actual = parseMarkdown(input);
+      report(name, actual === expected, expected, actual);
+    }
+    for (const [name, input, expected] of frontmatterCases) {
+      const actual = JSON.stringify(parseFrontmatter(input));
+      report(name, actual === JSON.stringify(expected), JSON.stringify(expected), actual);
+    }
+
+    const total = cases.length + frontmatterCases.length;
+    const summary = document.getElementById('summary');
+    summary.textContent = failed ? `${total}개 중 ${failed}개 실패` : `${total}개 모두 통과`;
+    summary.className = failed ? 'fail' : 'pass';
+    window.testResult = { total, failed };
+  </script>
+</body>
+</html>

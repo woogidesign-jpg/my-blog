@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="마크다운으로 쓰는 개인 블로그">
+  <title>내 블로그</title>
+  <script>
+    // 저장된 테마를 렌더링 전에 적용해 깜빡임을 막습니다.
+    try {
+      var t = localStorage.getItem('theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a class="site-title" href="./">내 블로그</a>
+      <button class="theme-toggle" type="button" aria-label="다크 모드로 전환" aria-pressed="false">☾</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="page-intro">
+      <h1>최근 글</h1>
+      <p>생각하고 배운 것을 기록합니다.</p>
+    </section>
+    <div id="post-list" aria-live="polite">
+      <p class="status">글 목록을 불러오는 중…</p>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">© 2026 내 블로그</div>
+  </footer>
+</body>
+</html>
