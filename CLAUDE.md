@@ -72,29 +72,30 @@ description: 목록에 표시될 짧은 요약
 
 ## 디자인 원칙
 
-깔끔하고 읽기 좋은 것이 최우선입니다. 장식보다 타이포그래피와 여백으로 구조를 표현합니다.
+**검은 배경 + 네온 색** 컨셉입니다. 터미널 느낌(모노스페이스 라벨, `>` 프롬프트, 깜빡이는 커서, 옅은 격자 배경)을 쓰되, 본문은 읽기 좋게 유지합니다.
 
-- **본문 폭**: `max-width: 68ch` 정도로 제한하고 가운데 정렬합니다.
+- **네온 색 역할**: `--neon`(초록: 제목·강조), `--neon-2`(청록: 링크·인라인 코드), `--neon-3`(마젠타: 태그·라벨·목록 기호). 색을 새로 늘리지 말고 이 셋 안에서 씁니다.
+- **글로우**: `text-shadow`/`box-shadow`는 `--glow`, `--glow-2`, `--glow-box` 토큰으로만 줍니다. 본문 문단에는 글로우를 넣지 않습니다(가독성).
+- **본문 글자색**은 순수 네온이 아니라 옅은 민트(`--text`)입니다.
+- **레이아웃**: 목록 페이지는 히어로 + 카드 그리드(모바일 1열, 640px 2열, 1024px 3열, 최신 글은 넓은 카드). 상세 페이지는 1024px 이상에서 왼쪽 정보 패널(날짜·읽는 시간·태그, sticky) + 오른쪽 본문입니다.
+- **본문 폭**: `max-width: 68ch` 정도로 제한합니다.
 - **글꼴**: 시스템 폰트 스택을 사용합니다 (`-apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Segoe UI", sans-serif`). 코드는 `ui-monospace, "SF Mono", Consolas, monospace`.
 - **본문 크기·행간**: `font-size: 1.0625rem`(17px), `line-height: 1.75`. 한글 가독성을 위해 `word-break: keep-all`을 적용합니다.
-- **색상**: 모든 색은 `:root`의 CSS 변수로 정의하고, 컴포넌트에서 색상값을 직접 쓰지 않습니다. 강조색은 하나만 사용합니다.
-- **대비**: 본문 텍스트와 배경의 명암비는 WCAG AA(4.5:1) 이상을 유지합니다.
+- **색상**: 모든 색은 `:root`의 CSS 변수로 정의하고, 컴포넌트에서 색상값을 직접 쓰지 않습니다.
+- **대비**: 텍스트·네온 색과 배경의 명암비는 두 테마 모두 WCAG AA(4.5:1) 이상을 유지합니다.
+- 깜빡임 등 애니메이션은 `prefers-reduced-motion: reduce`에서 끕니다.
 - 코드 블록은 가로 스크롤(`overflow-x: auto`)을 허용하고, 페이지 전체가 가로로 스크롤되면 안 됩니다.
 - 이미지는 `max-width: 100%; height: auto;`.
 
 ## 다크 모드
 
-- 기본값은 시스템 설정(`prefers-color-scheme`)을 따릅니다.
-- 헤더의 토글 버튼으로 라이트/다크를 직접 고를 수 있고, 선택값은 `localStorage`의 `theme` 키에 저장합니다. `localStorage` 접근은 `try/catch`로 감쌉니다.
-- `<html data-theme="light|dark">` 속성으로 테마를 적용하고, CSS는 아래 구조로 작성합니다.
+- 기본값은 **항상 검은 배경 네온 테마**입니다. 시스템 설정(`prefers-color-scheme`)은 따르지 않습니다.
+- 헤더의 토글 버튼으로 라이트 테마를 고를 수 있고, 선택값은 `localStorage`의 `theme` 키(`light`/`dark`)에 저장합니다. `localStorage` 접근은 `try/catch`로 감쌉니다.
+- 라이트 테마일 때만 `<html data-theme="light">`를 붙입니다. CSS는 아래 구조로 작성합니다. 라이트 테마에서는 네온 색을 대비가 충분한 진한 색으로 바꾸고 글로우를 끕니다(`--glow: none`).
 
 ```css
-:root { --bg: #ffffff; --text: #1f2328; /* ... */ }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --bg: #0f1115; --text: #e6e6e6; /* ... */ }
-}
-:root[data-theme="dark"] { --bg: #0f1115; --text: #e6e6e6; /* ... */ }
+:root { --bg: #000000; --text: #d9ffec; --neon: #39ff14; /* ... */ }
+:root[data-theme="light"] { --bg: #f4f4ee; --text: #15201b; --neon: #0b7a22; --glow: none; /* ... */ }
 ```
 
 - 페이지 로드 시 깜빡임(FOUC)을 막기 위해, 저장된 테마를 적용하는 짧은 인라인 스크립트를 `<head>`에 둡니다.

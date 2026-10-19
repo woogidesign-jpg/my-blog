@@ -24,15 +24,22 @@ async function loadPost(file) {
   return { slug, ...meta, title: meta.title || slug };
 }
 
-function renderPost(post) {
+function renderPost(post, index) {
   const li = document.createElement('li');
-  li.className = 'post-item';
+  // 가장 최근 글은 넓은 카드로 강조합니다.
+  li.className = index === 0 ? 'post-card is-featured' : 'post-card';
 
   const link = document.createElement('a');
   link.className = 'post-link';
   link.href = `post.html?slug=${encodeURIComponent(post.slug)}`;
 
-  const title = document.createElement('h2');
+  const number = document.createElement('span');
+  number.className = 'post-index';
+  number.setAttribute('aria-hidden', 'true');
+  number.textContent = `[${String(index + 1).padStart(2, '0')}]`;
+  link.append(number);
+
+  const title = document.createElement('h3');
   title.className = 'post-title';
   title.textContent = post.title;
   link.append(title);
@@ -90,7 +97,7 @@ async function init() {
   posts.sort((a, b) => (parseDate(b.date)?.getTime() ?? 0) - (parseDate(a.date)?.getTime() ?? 0));
 
   const list = document.createElement('ul');
-  list.className = 'post-list';
+  list.className = 'post-grid';
   list.append(...posts.map(renderPost));
   container.replaceChildren(list);
 }

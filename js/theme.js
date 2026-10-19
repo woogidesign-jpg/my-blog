@@ -1,15 +1,14 @@
-// 다크 모드 토글. 저장된 선택이 없으면 시스템 설정을 따릅니다.
+// 테마 토글. 기본은 검은 배경 네온 테마(dark)이고, 라이트를 고르면 localStorage에 저장합니다.
 // 첫 화면의 테마는 각 HTML <head>의 인라인 스크립트가 미리 적용합니다.
 
 const STORAGE_KEY = 'theme';
-const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const THEME_COLORS = { dark: '#000000', light: '#f4f4ee' };
 
 function readStoredTheme() {
   try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' ? value : null;
+    return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
   } catch {
-    return null;
+    return 'dark';
   }
 }
 
@@ -21,8 +20,13 @@ function storeTheme(theme) {
   }
 }
 
-function currentTheme() {
-  return readStoredTheme() ?? (darkQuery.matches ? 'dark' : 'light');
+function applyTheme(theme) {
+  if (theme === 'light') {
+    document.documentElement.dataset.theme = 'light';
+  } else {
+    delete document.documentElement.dataset.theme;
+  }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme]);
 }
 
 function updateButton(button, theme) {
@@ -35,19 +39,16 @@ function updateButton(button, theme) {
 
 export function initThemeToggle() {
   const button = document.querySelector('.theme-toggle');
+  const initial = readStoredTheme();
+  applyTheme(initial);
   if (!button) return;
 
-  updateButton(button, currentTheme());
+  updateButton(button, initial);
 
   button.addEventListener('click', () => {
-    const next = currentTheme() === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    applyTheme(next);
     storeTheme(next);
     updateButton(button, next);
-  });
-
-  // 직접 고른 적이 없으면 시스템 설정이 바뀔 때 버튼 상태도 따라갑니다.
-  darkQuery.addEventListener('change', () => {
-    if (!readStoredTheme()) updateButton(button, currentTheme());
   });
 }
