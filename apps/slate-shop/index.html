@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SLATE · woogi.log</title>
+  <meta name="description" content="모노톤 패션 쇼핑몰의 모바일 홈과 상품 상세 데모">
+  <!-- 사용자 확정 B안: 블로그 style.css·테마 스크립트를 불러오지 않습니다. -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 데모 모드(?demo=1) 소개 패널: 평소에는 숨김 -->
+  <aside class="sl-demo-intro" hidden>
+    <p class="sl-demo-logo">SLATE</p>
+    <p class="sl-demo-title">모바일 쇼핑몰 데모</p>
+    <p class="sl-demo-sub">홈 ↔ 상세</p>
+    <p class="sl-demo-desc">필터 · 찜 · 색상/사이즈 선택 · 장바구니 담기</p>
+  </aside>
+
+  <div class="sl-app" id="app">
+    <!-- 블로그 띠 + 사용법 (디자인에 없는 안내 요소) -->
+    <div class="sl-strip">
+      <a class="sl-strip-link" href="../../index.html" target="_top">← 블로그</a>
+      <details class="sl-help">
+        <summary class="sl-help-summary">사용법</summary>
+        <div class="sl-help-body">
+          <ul class="sl-help-list">
+            <li>상품 사진이나 이름을 누르면 상세 화면으로 가요. 왼쪽 위 ← 나 SLATE 로고로 돌아와요.</li>
+            <li>칩으로 카테고리를 고르고, 하트로 찜해 보세요. 찜은 홈과 상세에서 함께 바뀌어요.</li>
+            <li>상세에서 색상·사이즈·수량을 고른 뒤 장바구니에 담으면 위쪽 장바구니 숫자가 올라가요.</li>
+            <li>찜과 장바구니는 이 브라우저에만 저장돼요. 결제·검색·회원 기능은 없는 데모예요.</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+
+    <!-- ================= 홈 ================= -->
+    <section id="view-home" class="sl-view sl-view-home" aria-labelledby="home-title">
+      <p class="sl-banner">데모 쇼핑몰 · 실제 주문과 결제는 되지 않아요</p>
+
+      <header class="sl-header">
+        <button type="button" class="sl-icon-btn" data-dead="메뉴" aria-label="메뉴 열기">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <a href="#/" class="sl-logo" data-home-link>SLATE</a>
+        <button type="button" class="sl-icon-btn sl-cart-btn" data-cart-btn aria-label="장바구니, 0개">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>
+          <span class="sl-badge" data-cart-badge aria-hidden="true" hidden></span>
+        </button>
+      </header>
+
+      <form class="sl-search" role="search" id="search-form">
+        <label class="sl-search-box">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <span class="sl-sr">상품 검색</span>
+          <input type="search" name="q" class="sl-search-input" placeholder="상품, 브랜드 검색" autocomplete="off">
+        </label>
+      </form>
+
+      <main class="sl-main sl-home-main">
+        <!-- 히어로 -->
+        <section class="sl-hero" aria-labelledby="home-title">
+          <div class="sl-ph sl-hero-img" role="img" aria-label="시즌 캠페인 이미지 자리">
+            <svg class="sl-ph-icon" aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2V10"/><path d="M12 10l-8.5 6.2c-.8.6-.4 1.8.6 1.8h15.8c1 0 1.4-1.2.6-1.8L12 10z"/></svg>
+            <span class="sl-ph-cap">SEASON CAMPAIGN</span>
+          </div>
+          <div class="sl-hero-text">
+            <p class="sl-eyebrow">2026 FALL / WINTER</p>
+            <h1 id="home-title" class="sl-hero-title" tabindex="-1">가을의 결을<br>입는 시간</h1>
+            <p class="sl-hero-desc">부드러운 울과 차분한 톤으로 완성한 가을 컬렉션을 만나 보세요.</p>
+          </div>
+          <button type="button" class="sl-btn sl-btn-solid" id="hero-cta">신상품 보러가기</button>
+        </section>
+
+        <!-- 카테고리 -->
+        <section class="sl-section" aria-labelledby="cat-title">
+          <div class="sl-section-head">
+            <h2 id="cat-title" class="sl-h2">카테고리 탐색</h2>
+            <button type="button" class="sl-more-link" data-dead="전체 카테고리">전체 →</button>
+          </div>
+          <ul class="sl-cat-grid" id="cat-list"></ul>
+        </section>
+
+        <!-- 신상품 -->
+        <section class="sl-section sl-new" id="new-section" aria-labelledby="new-title">
+          <div class="sl-section-head sl-pad">
+            <h2 id="new-title" class="sl-h2 sl-scroll-target" tabindex="-1">신상품</h2>
+            <button type="button" class="sl-more-link" id="new-all">전체 →</button>
+          </div>
+          <div class="sl-chips" role="group" aria-label="신상품 카테고리 필터" id="chip-list"></div>
+          <ul class="sl-card-grid" id="product-list"></ul>
+          <div class="sl-more-wrap" id="more-wrap">
+            <button type="button" class="sl-btn sl-btn-line" id="more-btn">신상품 더보기</button>
+          </div>
+        </section>
+      </main>
+
+      <!-- 하단 탭 바 -->
+      <nav class="sl-tabbar sl-fixed-bar" aria-label="하단 메뉴">
+        <ul class="sl-tabbar-list">
+          <li>
+            <a href="#/" class="sl-tab is-current" aria-current="page" data-home-link>
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>홈
+            </a>
+          </li>
+          <li>
+            <button type="button" class="sl-tab" data-dead="카테고리">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/></svg>카테고리
+            </button>
+          </li>
+          <li>
+            <button type="button" class="sl-tab" data-dead="검색">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>검색
+            </button>
+          </li>
+          <li>
+            <button type="button" class="sl-tab" id="tab-wish">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="tab-wish-text">찜 0</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" class="sl-tab" data-dead="마이 페이지">
+              <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>마이
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </section>
+
+    <!-- ================= 상품 상세 ================= -->
+    <section id="view-product" class="sl-view sl-view-product" aria-labelledby="pd-name" hidden>
+      <header class="sl-header">
+        <button type="button" class="sl-icon-btn" id="pd-back" aria-label="뒤로 가기">
+          <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <a href="#/" class="sl-logo sl-logo-sm">SLATE</a>
+        <div class="sl-header-right">
+          <button type="button" class="sl-icon-btn" id="pd-share" aria-label="공유하기">
+            <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v7h14v-7"/></svg>
+          </button>
+          <button type="button" class="sl-icon-btn sl-cart-btn" data-cart-btn aria-label="장바구니, 0개">
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 8h14l-1 12H6L5 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg>
+            <span class="sl-badge" data-cart-badge aria-hidden="true" hidden></span>
+          </button>
+        </div>
+      </header>
+
+      <main class="sl-main sl-pd-main">
+        <!-- 상품을 찾을 수 없을 때 -->
+        <div class="sl-notfound" id="pd-notfound" hidden>
+          <h1 class="sl-notfound-title" id="nf-title" tabindex="-1">상품을 찾을 수 없어요</h1>
+          <p class="sl-notfound-desc">주소가 잘못되었거나 없는 상품이에요.</p>
+          <a href="#/" class="sl-btn sl-btn-solid">홈으로</a>
+        </div>
+
+        <div class="sl-pd" id="pd-body">
+          <!-- 상품 이미지 -->
+          <section class="sl-gallery" aria-label="상품 이미지">
+            <div class="sl-ph sl-gallery-img" id="pd-image" role="img" aria-label="">
+              <span class="sl-gallery-sw" id="pd-image-sw" aria-hidden="true"></span>
+              <svg class="sl-ph-icon" aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2V10"/><path d="M12 10l-8.5 6.2c-.8.6-.4 1.8.6 1.8h15.8c1 0 1.4-1.2.6-1.8L12 10z"/></svg>
+              <span class="sl-ph-cap" id="pd-image-cap"></span>
+            </div>
+            <button type="button" class="sl-gallery-nav sl-gallery-prev" id="pd-prev" aria-label="이전 이미지">
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+            </button>
+            <button type="button" class="sl-gallery-nav sl-gallery-next" id="pd-next" aria-label="다음 이미지">
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+            </button>
+            <span class="sl-gallery-count" id="pd-count" aria-hidden="true">1 / 5</span>
+          </section>
+
+          <!-- 기본 정보 -->
+          <section class="sl-pd-info" aria-labelledby="pd-name">
+            <div class="sl-pd-meta">
+              <span id="pd-cat">SLATE · 아우터</span>
+              <span class="sl-new-badge sl-new-inline" id="pd-new">NEW</span>
+            </div>
+            <h1 id="pd-name" class="sl-pd-name" tabindex="-1"></h1>
+            <p class="sl-pd-price"><span id="pd-price"></span><span class="sl-won">원</span></p>
+            <p class="sl-pd-sub" id="pd-sub"></p>
+          </section>
+
+          <!-- 옵션 선택 -->
+          <section class="sl-pd-options" aria-label="옵션 선택">
+            <fieldset class="sl-fieldset">
+              <legend class="sl-legend">색상 <span class="sl-legend-sub" id="pd-color-name"></span></legend>
+              <div class="sl-swatches" id="pd-swatches"></div>
+            </fieldset>
+
+            <fieldset class="sl-fieldset sl-scroll-target" id="pd-size-set">
+              <legend class="sl-legend">사이즈</legend>
+              <div class="sl-sizes" id="pd-sizes"></div>
+              <div class="sl-size-foot">
+                <span class="sl-size-error" id="pd-size-error" role="alert"></span>
+                <span class="sl-model" id="pd-model"></span>
+                <button type="button" class="sl-more-link" id="pd-guide-btn">사이즈 가이드</button>
+              </div>
+            </fieldset>
+
+            <div class="sl-summary" id="pd-summary" hidden>
+              <div class="sl-summary-row">
+                <span id="pd-summary-text"></span>
+                <span class="sl-muted">선택됨</span>
+              </div>
+              <div class="sl-summary-row sl-summary-row-center">
+                <div class="sl-qty">
+                  <button type="button" class="sl-qty-btn" id="pd-dec" aria-label="수량 줄이기">−</button>
+                  <span class="sl-qty-value" id="pd-qty" aria-live="polite">1</span>
+                  <button type="button" class="sl-qty-btn" id="pd-inc" aria-label="수량 늘리기">+</button>
+                </div>
+                <span class="sl-total" id="pd-total"></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- 상품 설명 -->
+          <section class="sl-pd-desc" aria-labelledby="pd-desc-title">
+            <h2 id="pd-desc-title" class="sl-h2-sm">상품 설명</h2>
+            <p class="sl-pd-desc-text" id="pd-desc"></p>
+            <div class="sl-ph sl-detail-img" role="img" aria-label="디테일 컷 이미지 자리">
+              <svg class="sl-ph-icon" aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2V10"/><path d="M12 10l-8.5 6.2c-.8.6-.4 1.8.6 1.8h15.8c1 0 1.4-1.2.6-1.8L12 10z"/></svg>
+              <span class="sl-ph-cap">DETAIL</span>
+            </div>
+
+            <dl class="sl-specs" id="pd-specs"></dl>
+
+            <div class="sl-size-guide sl-scroll-target" id="size-guide">
+              <h3 class="sl-h3" id="size-guide-title" tabindex="-1">사이즈 가이드 <span class="sl-h3-unit">(cm)</span></h3>
+              <div class="sl-table-wrap">
+                <table class="sl-table">
+                  <thead><tr id="pd-guide-head"></tr></thead>
+                  <tbody id="pd-guide-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="sl-link-list">
+              <button type="button" class="sl-link-row" data-dead="리뷰">리뷰 <span class="sl-muted"><span id="pd-reviews">0</span> ›</span></button>
+              <button type="button" class="sl-link-row" data-dead="상품 문의">상품 문의 <span class="sl-muted">›</span></button>
+              <button type="button" class="sl-link-row" data-dead="배송·교환·반품 안내">배송·교환·반품 안내 <span class="sl-muted">›</span></button>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <!-- 하단 구매 바 -->
+      <div class="sl-buybar sl-fixed-bar" id="pd-buybar">
+        <p class="sl-added" id="pd-added" role="status"></p>
+        <div class="sl-buybar-row">
+          <button type="button" class="sl-buy-heart sl-heart" id="pd-wish" aria-pressed="false" aria-label="찜하기">
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
+          </button>
+          <button type="button" class="sl-btn sl-btn-line sl-buy-cart" id="pd-add">장바구니</button>
+          <button type="button" class="sl-btn sl-btn-solid sl-buy-now" id="pd-buy">구매하기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 토스트 -->
+    <div class="sl-toast" id="toast" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- ===== 반복 요소 템플릿 (innerHTML 대신 복제해서 씁니다) ===== -->
+  <template id="tpl-chip">
+    <button type="button" class="sl-chip" aria-pressed="false"></button>
+  </template>
+
+  <template id="tpl-cat">
+    <li>
+      <button type="button" class="sl-cat">
+        <span class="sl-cat-img" aria-hidden="true"></span>
+        <span class="sl-cat-label"></span>
+      </button>
+    </li>
+  </template>
+
+  <template id="tpl-card">
+    <li class="sl-card">
+      <div class="sl-card-media">
+        <a class="sl-ph sl-card-img" href="#/">
+          <svg class="sl-ph-icon" aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6.5a2 2 0 1 1 2.8 1.8c-.5.2-.8.7-.8 1.2V10"/><path d="M12 10l-8.5 6.2c-.8.6-.4 1.8.6 1.8h15.8c1 0 1.4-1.2.6-1.8L12 10z"/></svg>
+        </a>
+        <span class="sl-new-badge sl-card-new" aria-hidden="true">NEW</span>
+        <button type="button" class="sl-card-heart sl-heart" aria-pressed="false" aria-label="">
+          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
+        </button>
+      </div>
+      <div class="sl-card-info">
+        <span class="sl-card-cat"></span>
+        <a class="sl-card-name" href="#/"></a>
+        <span class="sl-card-price"></span>
+      </div>
+    </li>
+  </template>
+
+  <template id="tpl-swatch">
+    <button type="button" class="sl-swatch" aria-pressed="false" aria-label="">
+      <span class="sl-swatch-ring" aria-hidden="true"><span class="sl-swatch-dot"></span></span>
+      <span class="sl-swatch-name" aria-hidden="true"></span>
+    </button>
+  </template>
+
+  <template id="tpl-size">
+    <button type="button" class="sl-size" aria-pressed="false"></button>
+  </template>
+
+  <template id="tpl-spec">
+    <dt class="sl-spec-term"></dt>
+    <dd class="sl-spec-desc"></dd>
+  </template>
+
+  <template id="tpl-th-col">
+    <th scope="col"></th>
+  </template>
+
+  <template id="tpl-guide-row">
+    <tr><th scope="row"></th></tr>
+  </template>
+
+  <template id="tpl-td">
+    <td></td>
+  </template>
+
+  <script type="module" src="ui.js"></script>
+</body>
+</html>

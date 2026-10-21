@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SLATE 테스트 · woogi.log</title>
+  <style>
+    :root {
+      --t-bg: #FFFFFF;
+      --t-text: #111111;
+      --t-muted: #555555;
+      --t-fail-bg: #F4F4F4;
+      --t-font: ui-monospace, 'SF Mono', Consolas, monospace;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--t-bg);
+      color: var(--t-text);
+      font-family: var(--t-font);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.2rem; }
+    .summary { font-weight: 700; }
+    .fail { font-weight: 700; background: var(--t-fail-bg); }
+    .detail { color: var(--t-muted); white-space: pre-wrap; word-break: break-all; }
+    ul { padding-left: 1.25rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>SLATE data.js · shop.js 테스트</h1>
+    <p class="summary" id="summary">실행 중…</p>
+    <ul id="results"></ul>
+  </main>
+
+  <script type="module">
+    import { PRODUCTS, CATEGORIES, CHIPS, IMAGE_COUNT } from './data.js';
+    import {
+      parseRoute, productHref, findProduct, formatPrice, pointsFor, filterProducts, visibleProducts,
+      toggleWish, isWished, clampQty, initialSelection, pickSize, pickColor, stepImage,
+      validateForCart, lineTotal, addToCart, cartCount, badgeText,
+      sanitizeWish, sanitizeCart, serializeWish, serializeCart
+    } from './shop.js';
+
+    const results = [];
+
+    function same(a, b) {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    function eq(actual, expected, label = '') {
+      if (!same(actual, expected)) {
+        throw new Error(`${label} 기대값 ${JSON.stringify(expected)}, 실제값 ${JSON.stringify(actual)}`);
+      }
+    }
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, ok: true });
+      } catch (err) {
+        results.push({ name, ok: false, message: err.message });
+        console.error(`실패: ${name}\n${err.message}`);
+      }
+    }
+
+    const ids = (list) => list.map((p) => p.id);
+    const P1 = findProduct(PRODUCTS, 1);
+    const P4 = findProduct(PRODUCTS, 4);
+
+    // ---------- 라우트 ----------
+    test('parseRoute: 홈', () => {
+      eq(parseRoute(''), { name: 'home' }, "''");
+      eq(parseRoute('#'), { name: 'home' }, "'#'");
+      eq(parseRoute('#/'), { name: 'home' }, "'#/'");
+    });
+    test('parseRoute: 상품', () => {
+      eq(parseRoute('#/product/3'), { name: 'product', id: 3 });
+      eq(parseRoute('#/product/12'), { name: 'product', id: 12 });
+    });
+    test('parseRoute: 잘못된 주소는 notFound', () => {
+      ['#/product/0', '#/product/-1', '#/product/1.5', '#/product/abc', '#/product/3/x', '#/foo', '#/product/1x', '#/product/', '#/product/03'].forEach((h) => {
+        eq(parseRoute(h), { name: 'notFound' }, h);
+      });
+      eq(parseRoute(undefined), { name: 'home' }, 'undefined');
+    });
+    test('productHref 왕복', () => {
+      eq(productHref(3), '#/product/3');
+      eq(parseRoute(productHref(3)), { name: 'product', id: 3 });
+    });
+    test('findProduct', () => {
+      eq(findProduct(PRODUCTS, 1).name, '울 블렌드 싱글 코트');
+      eq(findProduct(PRODUCTS, 99), null);
+    });
+
+    // ---------- 가격 ----------
+    test('formatPrice', () => {
+      eq(formatPrice(0), '0');
+      eq(formatPrice(999), '999');
+      eq(formatPrice(1000), '1,000');
+      eq(formatPrice(189000), '189,000');
+      eq(formatPrice(1890000), '1,890,000');
+    });
+    test('pointsFor·lineTotal', () => {
+      eq(pointsFor(189000), 1890);
+      eq(pointsFor(69000), 690);
+      eq(lineTotal(189000, 3), 567000);
+    });
+
+    // ---------- 목록 ----------
+    test('filterProducts', () => {
+      const before = JSON.stringify(PRODUCTS);
+      eq(filterProducts(PRODUCTS, '전체').length, 8, '전체');
+      eq(ids(filterProducts(PRODUCTS, '아우터')), [1, 5], '아우터');
+      eq(ids(filterProducts(PRODUCTS, '액세서리')), [4, 8], '액세서리');
+      eq(JSON.stringify(PRODUCTS), before, '원본 불변');
+      if (filterProducts(PRODUCTS, '전체') === PRODUCTS) throw new Error('새 배열이어야 함');
+    });
+    test('visibleProducts', () => {
+      const r1 = visibleProducts(PRODUCTS, false);
+      eq([r1.items.length, r1.hasMore], [4, true], '접힘');
+      eq(ids(r1.items), [1, 2, 3, 4], '처음 4개');
+      const r2 = visibleProducts(PRODUCTS, true);
+      eq([r2.items.length, r2.hasMore], [8, false], '펼침');
+      const r3 = visibleProducts(PRODUCTS.slice(0, 2), false);
+      eq([r3.items.length, r3.hasMore], [2, false], '2개');
+      const r4 = visibleProducts(PRODUCTS.slice(0, 4), false);
+      eq([r4.items.length, r4.hasMore], [4, false], '4개');
+    });
+
+    // ---------- 찜 ----------
+    test('toggleWish·isWished', () => {
+      const a = [1, 4];
+      eq(toggleWish(a, 2), [1, 4, 2], '추가');
+      eq(toggleWish(a, 1), [4], '제거');
+      eq(a, [1, 4], '원본 불변');
+      eq(isWished(a, 4), true);
+      eq(isWished(a, 2), false);
+    });
+
+    // ---------- 선택 ----------
+    test('clampQty', () => {
+      eq(clampQty(0), 1);
+      eq(clampQty(11), 10);
+      eq(clampQty(5), 5);
+      eq(clampQty(NaN), 1);
+      eq(clampQty(2.5), 1);
+      eq(clampQty('3'), 1);
+    });
+    test('initialSelection', () => {
+      eq(initialSelection(P1), { color: 0, size: null, qty: 1, image: 1 }, '1번');
+      eq(initialSelection(P4).size, 0, '4번 FREE 자동');
+      eq(initialSelection(findProduct(PRODUCTS, 8)).size, 0, '8번 FREE 자동');
+    });
+    test('pickSize·pickColor', () => {
+      const s = initialSelection(P1);
+      eq(pickSize(P1, s, 3), s, 'XL 품절 그대로');
+      eq(pickSize(P1, s, 1).size, 1, 'M');
+      eq(pickSize(P1, s, 9), s, '범위 밖');
+      eq(pickSize(P1, s, -1), s, '음수');
+      eq(s.size, null, '원본 불변');
+      eq(pickColor(P1, s, 2).color, 2, '오트밀');
+      eq(pickColor(P1, s, 5), s, '색 범위 밖');
+    });
+    test('stepImage', () => {
+      eq(stepImage(1, -1), 5);
+      eq(stepImage(5, 1), 1);
+      eq(stepImage(3, 1), 4);
+      eq(stepImage(3, -1), 2);
+      eq(IMAGE_COUNT, 5);
+    });
+    test('validateForCart', () => {
+      const s = initialSelection(P1);
+      eq(validateForCart(P1, s), { ok: false, reason: 'size' }, '사이즈 없음');
+      eq(validateForCart(P1, { ...s, size: 1 }), { ok: true }, '사이즈 있음');
+      eq(validateForCart(P1, { ...s, size: 3 }), { ok: false, reason: 'size' }, '품절');
+    });
+
+    // ---------- 장바구니 ----------
+    test('addToCart', () => {
+      const empty = [];
+      const c1 = addToCart(empty, { productId: 1, color: 0, size: 1, qty: 2 });
+      eq(c1, [{ productId: 1, color: 0, size: 1, qty: 2 }], '새 줄');
+      eq(empty, [], '원본 불변');
+      const c2 = addToCart(c1, { productId: 1, color: 0, size: 1, qty: 3 });
+      eq(c2, [{ productId: 1, color: 0, size: 1, qty: 5 }], '같은 옵션 합침');
+      eq(c1[0].qty, 2, '원본 줄 불변');
+      const c3 = addToCart(c2, { productId: 1, color: 1, size: 1, qty: 1 });
+      eq(c3.length, 2, '다른 색 새 줄');
+      const c4 = addToCart([{ productId: 1, color: 0, size: 1, qty: 95 }], { productId: 1, color: 0, size: 1, qty: 10 });
+      eq(c4[0].qty, 99, '99 상한');
+    });
+    test('cartCount·badgeText', () => {
+      eq(cartCount([]), 0);
+      eq(cartCount([{ productId: 1, color: 0, size: 1, qty: 2 }, { productId: 2, color: 0, size: 0, qty: 3 }]), 5);
+      eq(badgeText(0), '');
+      eq(badgeText(5), '5');
+      eq(badgeText(99), '99');
+      eq(badgeText(120), '99+');
+    });
+
+    // ---------- 저장 값 검증 ----------
+    test('sanitizeWish', () => {
+      eq(sanitizeWish(serializeWish([1, 4]), PRODUCTS), [1, 4], '정상 왕복');
+      eq(sanitizeWish({ v: 2, ids: [1] }, PRODUCTS), [], 'v 다름');
+      eq(sanitizeWish('oops', PRODUCTS), [], '문자열');
+      eq(sanitizeWish(null, PRODUCTS), [], 'null');
+      eq(sanitizeWish({ v: 1, ids: 'x' }, PRODUCTS), [], 'ids 배열 아님');
+      eq(sanitizeWish({ v: 1, ids: [1, 99, 1, '4', 4, -2] }, PRODUCTS), [1, 4], '없는 id·중복·문자 제거');
+    });
+    test('sanitizeCart', () => {
+      const good = [{ productId: 1, color: 0, size: 1, qty: 2 }];
+      eq(sanitizeCart(serializeCart(good), PRODUCTS), good, '정상 왕복');
+      eq(sanitizeCart({ v: 1, items: [{ productId: 99 }] }, PRODUCTS), [], '없는 상품');
+      eq(sanitizeCart('oops', PRODUCTS), [], '문자열');
+      eq(sanitizeCart({ v: 2, items: good }, PRODUCTS), [], 'v 다름');
+      const messy = {
+        v: 1,
+        items: [
+          { productId: 1, color: 9, size: 1, qty: 1 },
+          { productId: 1, color: 0, size: 3, qty: 1 },
+          { productId: 1, color: 0, size: 1, qty: 0 },
+          { productId: 1, color: 0, size: 1, qty: '2' },
+          { productId: 1, color: 0, size: 1, qty: -3 },
+          { productId: 2, color: 1, size: 2, qty: 150 },
+          null,
+          { productId: 4, color: 1, size: 0, qty: 1 }
+        ]
+      };
+      eq(sanitizeCart(messy, PRODUCTS), [
+        { productId: 2, color: 1, size: 2, qty: 99 },
+        { productId: 4, color: 1, size: 0, qty: 1 }
+      ], '항목 단위 검증');
+    });
+
+    // ---------- 데이터 무결성 ----------
+    test('데이터 무결성', () => {
+      eq(PRODUCTS.length, 8, '상품 8개');
+      eq(ids(PRODUCTS), [1, 2, 3, 4, 5, 6, 7, 8], 'id 1~8 순서');
+      eq(new Set(ids(PRODUCTS)).size, 8, 'id 유일');
+      eq(CATEGORIES.length, 8, '카테고리 8개');
+      eq(CHIPS.length, 5, '칩 5개');
+      PRODUCTS.forEach((p) => {
+        if (!CHIPS.includes(p.cat)) throw new Error(`${p.id} cat ${p.cat}`);
+        if (!p.colors.length || p.colors.length > 3) throw new Error(`${p.id} 색 개수`);
+        p.colors.forEach((c) => {
+          if (!/^#[0-9a-f]{6}$/i.test(c.hex)) throw new Error(`${p.id} hex ${c.hex}`);
+        });
+        if (!p.sizes.some((s) => !s.soldOut)) throw new Error(`${p.id} 살 수 있는 사이즈 없음`);
+        p.sizeGuide.rows.forEach((row) => {
+          if (row.length !== p.sizeGuide.cols.length) throw new Error(`${p.id} 사이즈표 행 길이`);
+        });
+        if (!Number.isInteger(p.price) || p.price <= 0) throw new Error(`${p.id} 가격`);
+        if (!p.desc || !p.modelInfo || !p.specs.length) throw new Error(`${p.id} 설명`);
+      });
+      eq(P1.price, 189000, '1번 가격');
+      eq(P1.sizes[3], { label: 'XL', soldOut: true }, '1번 XL 품절');
+      eq(P1.colors.map((c) => c.name), ['차콜', '카멜', '오트밀'], '1번 색');
+    });
+
+    // ---------- 결과 표시 ----------
+    const passed = results.filter((r) => r.ok).length;
+    const total = results.length;
+    const summary = document.getElementById('summary');
+    summary.textContent = `${passed === total ? 'PASS' : 'FAIL'} ${passed}/${total}`;
+    document.title = `${passed === total ? 'PASS' : 'FAIL'} ${passed}/${total} · SLATE 테스트`;
+    const list = document.getElementById('results');
+    results.forEach((r) => {
+      const li = document.createElement('li');
+      li.textContent = `${r.ok ? '통과' : '실패'} — ${r.name}`;
+      if (!r.ok) {
+        li.className = 'fail';
+        const d = document.createElement('div');
+        d.className = 'detail';
+        d.textContent = r.message;
+        li.appendChild(d);
+      }
+      list.appendChild(li);
+    });
+  </script>
+</body>
+</html>
