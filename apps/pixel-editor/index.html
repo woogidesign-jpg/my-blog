@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>픽셀 에디터 · woogi.log</title>
+  <meta name="description" content="16×16 격자에 도트를 찍어 그림을 그리고 PNG로 저장하세요. 16색 팔레트, 채우기·스포이트, 되돌리기 지원.">
+  <script>
+    // 첫 화면이 그려지기 전에 블로그에서 고른 테마를 적용합니다 (깜빡임 방지).
+    try {
+      if (localStorage.getItem('theme') === 'light') document.documentElement.dataset.theme = 'light';
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="ui.js"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <nav class="top-bar" aria-label="앱 메뉴">
+        <a class="back-link" href="../../index.html" target="_top">← 블로그</a>
+        <button class="button button-primary save-top" type="button" id="save-top">PNG 저장</button>
+      </nav>
+      <h1 class="title"><span class="title-prompt" aria-hidden="true">&gt; </span>pixel_editor<span class="cursor" aria-hidden="true"></span></h1>
+    </header>
+
+    <main class="app-main">
+      <div class="board-wrap">
+        <div class="board" id="board" tabindex="0" role="application"
+             aria-label="16×16 그림판. 방향키로 칸 이동, 스페이스로 현재 도구 적용"
+             aria-describedby="shortcuts">
+          <div class="grid-lines" id="grid-lines" aria-hidden="true"></div>
+          <div class="hover-cell" id="hover-cell" aria-hidden="true" hidden></div>
+          <div class="cursor-cell" id="cursor-cell" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="tools" role="group" aria-label="도구">
+          <button class="tool" type="button" data-tool="pencil" aria-pressed="true" aria-label="연필 (B)" title="연필 (B)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20l1.2-4.8L15.5 4.9a2 2 0 0 1 2.8 0l.8.8a2 2 0 0 1 0 2.8L8.8 18.8z M13.5 7l3.5 3.5"/></svg>
+            <span class="sr-only">연필</span>
+          </button>
+          <button class="tool" type="button" data-tool="eraser" aria-pressed="false" aria-label="지우개 (E)" title="지우개 (E)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8.5 19.5L3.8 14.8a1.5 1.5 0 0 1 0-2.1l8.9-8.9a1.5 1.5 0 0 1 2.1 0l5.3 5.3a1.5 1.5 0 0 1 0 2.1l-8.2 8.3z M8 9l7 7 M8.5 19.5H20"/></svg>
+            <span class="sr-only">지우개</span>
+          </button>
+          <button class="tool" type="button" data-tool="fill" aria-pressed="false" aria-label="채우기 (F)" title="채우기 (F)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 3l8 8-6.5 6.5a1.5 1.5 0 0 1-2.1 0L3.5 11.6a1.5 1.5 0 0 1 0-2.1z M4 11h14 M20 15s1.5 2 1.5 3a1.5 1.5 0 0 1-3 0c0-1 1.5-3 1.5-3z"/></svg>
+            <span class="sr-only">채우기</span>
+          </button>
+          <button class="tool" type="button" data-tool="picker" aria-pressed="false" aria-label="스포이트 (I)" title="스포이트 (I)">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M14 6l4 4 M15.5 3.5a2.1 2.1 0 0 1 3 0l2 2a2.1 2.1 0 0 1 0 3L18 11 13 6z M13 7.5L5 15.5V19h3.5l8-8"/></svg>
+            <span class="sr-only">스포이트</span>
+          </button>
+          <span class="tool-sep" aria-hidden="true"></span>
+          <button class="tool" type="button" id="undo" aria-label="되돌리기 (Ctrl+Z)" title="되돌리기 (Ctrl+Z)" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 14L4 9l5-5 M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+            <span class="sr-only">되돌리기</span>
+          </button>
+          <button class="tool" type="button" id="redo" aria-label="다시하기 (Ctrl+Shift+Z)" title="다시하기 (Ctrl+Shift+Z)" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 14l5-5-5-5 M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>
+            <span class="sr-only">다시하기</span>
+          </button>
+        </div>
+
+        <div class="current-color">
+          <span class="current-swatch" id="current-swatch" aria-hidden="true"></span>
+          <span class="current-hex" id="current-hex">#ff004d</span>
+          <span class="sr-only">현재 색</span>
+        </div>
+
+        <div class="board-actions">
+          <button class="button" type="button" id="grid-toggle" aria-pressed="true" title="격자선 (G)">격자선</button>
+          <button class="button" type="button" id="clear">지우기</button>
+        </div>
+
+        <div class="palette" id="palette" role="group" aria-label="팔레트">
+          <label class="custom" id="custom-label" for="custom-color">
+            <span class="custom-swatch" id="custom-swatch" aria-hidden="true"></span>
+            <span class="custom-text">직접 선택</span>
+            <input class="custom-input" type="color" id="custom-color" value="#00e5ff">
+          </label>
+        </div>
+
+        <div class="export">
+          <label class="export-label" for="scale">배율</label>
+          <select class="select" id="scale">
+            <option value="1">1× (16px)</option>
+            <option value="8">8× (128px)</option>
+            <option value="16" selected>16× (256px)</option>
+            <option value="32">32× (512px)</option>
+          </select>
+          <button class="button button-primary save-side" type="button" id="save-side">PNG 저장</button>
+        </div>
+
+        <p class="shortcuts" id="shortcuts">단축키: B 연필 · E 지우개 · F 채우기 · I 스포이트 · G 격자선 · Ctrl+Z 되돌리기 · Ctrl+Shift+Z / Ctrl+Y 다시하기. 그림판에서 방향키로 이동(Shift는 4칸), Space·Enter로 적용.</p>
+        <p class="status" id="status" aria-live="polite"></p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
