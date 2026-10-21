@@ -1,112 +1,103 @@
-// 글 상세 페이지: post.html?slug=파일이름 형태로 마크다운 글 하나를 보여줍니다.
-
-import { parseFrontmatter } from './frontmatter.js';
+// 글 상세 페이지 (post.html?slug=파일이름)
+import { parseFrontMatter } from './frontmatter.js';
 import { parseMarkdown } from './markdown.js';
-import { initThemeToggle } from './theme.js';
-import { createTimeElement, createTagList, createStatus } from './format.js';
+import {
+  createTagList,
+  createTimeElement,
+  errorKind,
+  fetchResource,
+  isValidSlug,
+  readingMinutes,
+  showStatus
+} from './format.js';
 
-const SLUG_RE = /^[a-z0-9-]+$/;
+const article = document.getElementById('post');
 const SITE_NAME = document.title;
+const BACK_LINK = { href: './', label: '← 글 목록으로' };
 
-class NotFoundError extends Error {}
+function metaRow(label, value) {
+  const row = document.createElement('div');
+  row.className = 'meta-row';
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const detail = document.createElement('dd');
+  detail.append(value);
+  row.append(term, detail);
+  return row;
+}
 
-async function loadPost(slug) {
-  let response;
-  try {
-    response = await fetch(`posts/${slug}.md`, { cache: 'no-cache' });
-  } catch (error) {
-    throw new Error('network', { cause: error });
+function renderPost(data, body) {
+  const title = data.title || '제목 없음';
+  document.title = `${title} | ${SITE_NAME}`;
+  if (data.description) {
+    document.querySelector('meta[name="description"]')?.setAttribute('content', data.description);
   }
-  if (response.status === 404) throw new NotFoundError();
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return parseFrontmatter(await response.text());
-}
 
-// 한글 기준 분당 약 500자로 읽는 시간을 어림합니다.
-function readingMinutes(text) {
-  const chars = text.replace(/\s+/g, '').length;
-  return Math.max(1, Math.round(chars / 500));
-}
-
-function renderAside(meta, body) {
+  // 정보 패널 (넓은 화면에서는 왼쪽)
   const aside = document.createElement('aside');
-  aside.className = 'post-aside';
+  aside.className = 'post-meta';
   aside.setAttribute('aria-label', '글 정보');
-  const dl = document.createElement('dl');
+  const meta = document.createElement('dl');
+  const time = createTimeElement(data.date);
+  if (time) meta.append(metaRow('date', time));
+  meta.append(metaRow('read', `${readingMinutes(body)}분`));
+  meta.append(metaRow('tags', createTagList(data.tags)));
+  aside.append(meta);
 
-  const addRow = (label, value) => {
-    if (!value) return;
-    const dt = document.createElement('dt');
-    dt.textContent = label;
-    const dd = document.createElement('dd');
-    dd.append(value);
-    dl.append(dt, dd);
-  };
-
-  addRow('날짜', createTimeElement(meta.date));
-  addRow('읽는 시간', `약 ${readingMinutes(body)}분`);
-  addRow('태그', createTagList(meta.tags));
-
-  aside.append(dl);
-  return aside;
-}
-
-function renderArticle({ meta, body }, slug) {
-  const article = document.createElement('article');
-  article.className = 'post-layout';
-
-  const main = document.createElement('div');
-  main.className = 'post-main';
-
+  // 오른쪽 본문 (머리말 → 본문 → 꼬리말)
   const header = document.createElement('header');
   header.className = 'post-header';
-  const title = document.createElement('h1');
-  title.textContent = meta.title || slug;
-  header.append(title);
-
-  if (meta.description) {
+  const prompt = document.createElement('p');
+  prompt.className = 'prompt';
+  prompt.textContent = `cat ${new URLSearchParams(location.search).get('slug')}.md`;
+  const heading = document.createElement('h1');
+  heading.className = 'post-title';
+  heading.textContent = title;
+  header.append(prompt, heading);
+  if (data.description) {
     const lead = document.createElement('p');
     lead.className = 'post-lead';
-    lead.textContent = meta.description;
+    lead.textContent = data.description;
     header.append(lead);
   }
 
   const content = document.createElement('div');
-  content.className = 'prose';
-  // parseMarkdown은 원문 HTML을 모두 이스케이프하므로 innerHTML에 안전하게 넣을 수 있습니다.
+  content.className = 'post-content';
+  // parseMarkdown 은 원문을 이스케이프한 뒤 변환하므로 innerHTML 에 넣어도 안전합니다.
   content.innerHTML = parseMarkdown(body);
 
-  main.append(header, content);
-  article.append(renderAside(meta, body), main);
-  document.title = `${title.textContent} · ${SITE_NAME}`;
-  if (meta.description) {
-    document.querySelector('meta[name="description"]')?.setAttribute('content', meta.description);
-  }
-  return article;
+  const footer = document.createElement('footer');
+  footer.className = 'post-footer';
+  const back = document.createElement('a');
+  back.className = 'button';
+  back.href = BACK_LINK.href;
+  back.textContent = BACK_LINK.label;
+  footer.append(back);
+
+  // 모바일에서는 이 순서대로 쌓이고, 넓은 화면에서는 CSS 그리드가 정보 패널을 왼쪽으로 옮깁니다.
+  article.replaceChildren(header, aside, content, footer);
+  article.classList.add('post--ready');
 }
 
-async function init() {
-  initThemeToggle();
-  const container = document.getElementById('post');
-  const slug = new URLSearchParams(location.search).get('slug') ?? '';
-
-  if (!SLUG_RE.test(slug)) {
-    container.replaceChildren(createStatus('잘못된 주소입니다.', '목록에서 글을 선택해 주세요.'));
+async function render() {
+  const slug = new URLSearchParams(location.search).get('slug');
+  if (!isValidSlug(slug)) {
+    showStatus(article, 'not-found', {
+      title: '404 잘못된 주소입니다',
+      text: '글 주소는 post.html?slug=글-이름 형식이어야 합니다.',
+      link: BACK_LINK
+    });
     return;
   }
 
+  showStatus(article, 'loading');
   try {
-    container.replaceChildren(renderArticle(await loadPost(slug), slug));
+    const { data, body } = parseFrontMatter(await fetchResource(`posts/${slug}.md`));
+    renderPost(data, body);
   } catch (error) {
     console.error(error);
-    if (error instanceof NotFoundError) {
-      container.replaceChildren(createStatus('글을 찾을 수 없습니다.', '삭제되었거나 주소가 잘못되었을 수 있습니다.'));
-    } else if (error.message === 'network') {
-      container.replaceChildren(createStatus('네트워크 오류가 발생했습니다.', '연결 상태를 확인한 뒤 새로고침해 주세요.'));
-    } else {
-      container.replaceChildren(createStatus('글을 불러오지 못했습니다.', '잠시 후 다시 시도해 주세요.'));
-    }
+    showStatus(article, errorKind(error), { link: BACK_LINK });
   }
 }
 
-init();
+render();

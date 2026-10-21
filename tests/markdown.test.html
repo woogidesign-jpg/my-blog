@@ -5,90 +5,140 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>마크다운 변환기 테스트</title>
   <style>
-    body { margin: 0; padding: 16px; background: #fff; color: #1f2328; font: 14px/1.5 system-ui, sans-serif; }
-    h1 { font-size: 1.25rem; }
-    .pass { color: #1a7f37; }
-    .fail { color: #cf222e; }
-    pre { background: #f6f8fa; padding: 8px; overflow-x: auto; white-space: pre-wrap; }
+    :root {
+      --bg: #000000;
+      --text: #d9ffec;
+      --muted: #8fb8a5;
+      --pass: #39ff14;
+      --fail: #ff4fd8;
+      --line: #1d3a2c;
+      --mono: ui-monospace, "SF Mono", Consolas, monospace;
+    }
+    body {
+      margin: 0;
+      padding: 24px 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.875rem;
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    #summary { margin: 0 0 24px; font-weight: 700; }
+    .pass { color: var(--pass); }
+    .fail { color: var(--fail); }
+    ol { padding-left: 1.5em; }
+    li { margin-bottom: 12px; }
+    pre {
+      overflow-x: auto;
+      margin: 6px 0 0;
+      padding: 8px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
-  <h1>마크다운 변환기 테스트</h1>
-  <p id="summary">실행 중…</p>
-  <ol id="results"></ol>
+  <main>
+    <h1>&gt; markdown.js 테스트</h1>
+    <p id="summary">실행 중…</p>
+    <ol id="results"></ol>
+  </main>
 
   <script type="module">
-    import { parseMarkdown } from '../js/markdown.js';
-    import { parseFrontmatter } from '../js/frontmatter.js';
+    import { parseMarkdown, parseInline } from '../js/markdown.js';
+    import { parseFrontMatter } from '../js/frontmatter.js';
 
+    // [이름, 실제 값을 만드는 함수, 기대 값]
     const cases = [
-      ['제목', '# 안녕', '<h1>안녕</h1>'],
-      ['닫는 #은 공백 뒤에만 제거', '## C#', '<h2>C#</h2>'],
-      ['문단과 강조', '**굵게** *기울임* ~~취소~~', '<p><strong>굵게</strong> <em>기울임</em> <del>취소</del></p>'],
-      ['단어 안 밑줄 유지', 'snake_case_name', '<p>snake_case_name</p>'],
-      ['인라인 코드 안의 문법 무시', '`**x**`', '<p><code>**x**</code></p>'],
-      ['강제 줄바꿈', 'a  \nb', '<p>a<br>\nb</p>'],
-      ['CRLF 입력', '# 제목\r\n\r\n본문', '<h1>제목</h1>\n<p>본문</p>'],
-      ['HTML 태그 이스케이프', '<script>alert(1)<\/script>', '<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>'],
-      ['javascript: 링크 차단', '[클릭](javascript:alert(1))', '<p><a href="#">클릭</a>)</p>'],
-      ['JavaScript: 대소문자 섞어도 차단', '[x](JaVaScRiPt:alert)', '<p><a href="#">x</a></p>'],
-      ['data: 이미지 차단', '![a](data:text/html,x)', '<p><img src="#" alt="a" loading="lazy"></p>'],
-      ['외부 링크', '[MDN](https://developer.mozilla.org)',
-        '<p><a href="https://developer.mozilla.org" target="_blank" rel="noopener noreferrer">MDN</a></p>'],
-      ['상대 링크', '[글](post.html?slug=a&b=c)', '<p><a href="post.html?slug=a&amp;b=c">글</a></p>'],
-      ['링크 URL의 밑줄은 강조되지 않음', '[a](https://x.com/a_b_c)',
-        '<p><a href="https://x.com/a_b_c" target="_blank" rel="noopener noreferrer">a</a></p>'],
-      ['이미지 alt의 따옴표 이스케이프', '![a"b](x.png)', '<p><img src="x.png" alt="a&quot;b" loading="lazy"></p>'],
-      ['코드 블록', '```js\nconst a = 1 < 2; // **x**\n```',
-        '<pre><code class="language-js">const a = 1 &lt; 2; // **x**</code></pre>'],
-      ['중첩 목록', '- a\n  - b\n- c', '<ul><li>a<ul><li>b</li></ul></li><li>c</li></ul>'],
-      ['종류가 다른 목록은 분리', '- a\n\n1. b', '<ul><li>a</li></ul><ol><li>b</li></ol>'],
-      ['순서 있는 목록 시작 번호', '3. a\n4. b', '<ol start="3"><li>a</li><li>b</li></ol>'],
-      ['체크리스트', '- [x] 완료', '<ul><li class="task"><input type="checkbox" disabled checked> 완료</li></ul>'],
-      ['인용문', '> **a**\n> b', '<blockquote>\n<p><strong>a</strong>\nb</p>\n</blockquote>'],
-      ['수평선', 'a\n\n---', '<p>a</p>\n<hr>'],
-      ['표', '| a | b |\n|:--|--:|\n| 1 | 2 |',
-        '<div class="table-wrap"><table><thead><tr><th style="text-align:left">a</th><th style="text-align:right">b</th></tr></thead>'
-        + '<tbody><tr><td style="text-align:left">1</td><td style="text-align:right">2</td></tr></tbody></table></div>'],
-      ['NUL 문자 제거', 'a\u00000\u0000b', '<p>a0b</p>'],
+      // 블록
+      ['제목 1~6', () => parseMarkdown('# 하나\n###### 여섯'), '<h1>하나</h1>\n<h6>여섯</h6>'],
+      ['# 뒤에 공백이 없으면 제목 아님', () => parseMarkdown('#태그'), '<p>#태그</p>'],
+      ['문단 구분', () => parseMarkdown('첫 문단\n이어짐\n\n둘째 문단'), '<p>첫 문단\n이어짐</p>\n<p>둘째 문단</p>'],
+      ['공백 두 칸 줄바꿈', () => parseMarkdown('한 줄  \n두 줄'), '<p>한 줄<br>\n두 줄</p>'],
+      ['수평선', () => parseMarkdown('위\n\n---\n\n* * *'), '<p>위</p>\n<hr>\n<hr>'],
+      ['인용문', () => parseMarkdown('> 인용\n> **강조**'), '<blockquote>\n<p>인용\n<strong>강조</strong></p>\n</blockquote>'],
+      ['중첩 인용문', () => parseMarkdown('> 바깥\n>\n> > 안쪽'), '<blockquote>\n<p>바깥</p>\n<blockquote>\n<p>안쪽</p>\n</blockquote>\n</blockquote>'],
+      ['순서 없는 목록', () => parseMarkdown('- 가\n- 나'), '<ul>\n<li>가</li>\n<li>나</li>\n</ul>'],
+      ['순서 있는 목록 시작 번호', () => parseMarkdown('3. 셋\n4. 넷'), '<ol start="3">\n<li>셋</li>\n<li>넷</li>\n</ol>'],
+      ['중첩 목록', () => parseMarkdown('- 가\n  - 가-1\n- 나'), '<ul>\n<li>가\n<ul>\n<li>가-1</li>\n</ul></li>\n<li>나</li>\n</ul>'],
+      ['순서 있는 목록 안의 순서 없는 목록', () => parseMarkdown('1. 하나\n   - 점\n2. 둘'), '<ol>\n<li>하나\n<ul>\n<li>점</li>\n</ul></li>\n<li>둘</li>\n</ol>'],
+      ['느슨한 목록은 문단으로 감쌈', () => parseMarkdown('- 가\n\n- 나'), '<ul>\n<li><p>가</p></li>\n<li><p>나</p></li>\n</ul>'],
+      ['체크박스 목록', () => parseMarkdown('- [x] 끝\n- [ ] 할 일'), '<ul class="task-list">\n<li class="task-item"><input type="checkbox" disabled checked> 끝</li>\n<li class="task-item"><input type="checkbox" disabled> 할 일</li>\n</ul>'],
+      ['목록 뒤 문단', () => parseMarkdown('- 가\n\n문단'), '<ul>\n<li>가</li>\n</ul>\n<p>문단</p>'],
+      ['코드 블록 언어 표시', () => parseMarkdown('```js\nconst a = 1;\n```'), '<pre><code class="language-js">const a = 1;\n</code></pre>'],
+      ['코드 블록 안에는 마크다운 적용 안 함', () => parseMarkdown('```\n**굵게** <b>\n# 제목\n```'), '<pre><code>**굵게** &lt;b&gt;\n# 제목\n</code></pre>'],
+      ['닫히지 않은 코드 블록은 끝까지', () => parseMarkdown('```\n열림'), '<pre><code>열림\n</code></pre>'],
+      ['표와 정렬', () => parseMarkdown('| a | b |\n|:--|--:|\n| 1 | 2 |'), '<div class="table-wrap">\n<table>\n<thead>\n<tr><th class="align-left">a</th><th class="align-right">b</th></tr>\n</thead>\n<tbody>\n<tr><td class="align-left">1</td><td class="align-right">2</td></tr>\n</tbody>\n</table>\n</div>'],
+      ['표 안의 \\| 는 글자', () => parseMarkdown('| a |\n|---|\n| x \\| y |'), '<div class="table-wrap">\n<table>\n<thead>\n<tr><th>a</th></tr>\n</thead>\n<tbody>\n<tr><td>x | y</td></tr>\n</tbody>\n</table>\n</div>'],
+      ['칸 수가 다른 구분선은 표 아님', () => parseMarkdown('| a | b |\n|---|'), '<p>| a | b |\n|---|</p>'],
+
+      // 인라인
+      ['굵게·기울임·취소선', () => parseInline('**굵게** *기울임* ~~취소~~'), '<strong>굵게</strong> <em>기울임</em> <del>취소</del>'],
+      ['밑줄 강조', () => parseInline('__굵게__ _기울임_'), '<strong>굵게</strong> <em>기울임</em>'],
+      ['단어 안의 밑줄은 그대로', () => parseInline('snake_case_이름'), 'snake_case_이름'],
+      ['공백에 둘러싸인 별표는 그대로', () => parseInline('2 * 3 * 4'), '2 * 3 * 4'],
+      ['인라인 코드 안은 그대로', () => parseInline('`**a** <b>`'), '<code>**a** &lt;b&gt;</code>'],
+      ['백슬래시 이스케이프', () => parseInline('\\*별표\\*'), '*별표*'],
+      ['링크', () => parseInline('[글](post.html?slug=a)'), '<a href="post.html?slug=a">글</a>'],
+      ['외부 링크는 새 탭', () => parseInline('[MDN](https://developer.mozilla.org)'), '<a href="https://developer.mozilla.org" target="_blank" rel="noopener noreferrer">MDN</a>'],
+      ['링크 제목', () => parseInline('[a](b.html "제목")'), '<a href="b.html" title="제목">a</a>'],
+      ['링크 안 강조', () => parseInline('[**굵은** 링크](a.html)'), '<a href="a.html"><strong>굵은</strong> 링크</a>'],
+      ['URL의 밑줄·별표는 그대로', () => parseInline('[a](x_y_z*1*.html)'), '<a href="x_y_z*1*.html">a</a>'],
+      ['mailto 링크', () => parseInline('[메일](mailto:a@b.c)'), '<a href="mailto:a@b.c">메일</a>'],
+      ['이미지', () => parseInline('![대체](img.png "제목")'), '<img src="img.png" alt="대체" title="제목" loading="lazy">'],
+
+      // 보안
+      ['HTML 태그 이스케이프', () => parseMarkdown('<script>alert("x")</script>'), '<p>&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</p>'],
+      ['& 이스케이프', () => parseInline('a & b'), 'a &amp; b'],
+      ['javascript: 링크 제거', () => parseInline('[누르기](javascript:alert(1))'), '누르기'],
+      ['대소문자 섞은 javascript: 제거', () => parseInline('[x](JavaScript:alert(1))'), 'x'],
+      ['data: 링크 제거', () => parseInline('[x](data:text/html,hi)'), 'x'],
+      ['vbscript: 링크 제거', () => parseInline('[x](vbscript:msgbox)'), 'x'],
+      ['javascript: 이미지 제거', () => parseInline('![대체](javascript:alert(1))'), '대체'],
+      ['mailto 이미지 제거', () => parseInline('![대체](mailto:a@b.c)'), '대체'],
+      ['속성 탈출 시도', () => parseInline('[x](a.html "t\\" onmouseover=\\"alert(1)")'), '<a href="a.html" title="t&quot; onmouseover=&quot;alert(1)">x</a>'],
+      ['자리표시자 문자 주입', () => parseInline('\u00000\u0000'), '0'],
+
+      // front matter
+      ['front matter 읽기', () => JSON.stringify(parseFrontMatter('---\ntitle: 제목\ntags: [가, "나"]\n---\n본문')), JSON.stringify({ data: { title: '제목', tags: ['가', '나'] }, body: '본문' })],
+      ['front matter 없음', () => JSON.stringify(parseFrontMatter('본문만')), JSON.stringify({ data: {}, body: '본문만' })]
     ];
 
-    const frontmatterCases = [
-      ['front matter 파싱', '---\ntitle: "제목"\ntags: [a, b]\n---\n본문',
-        { meta: { title: '제목', tags: ['a', 'b'] }, body: '본문' }],
-      ['front matter 없음', '본문만', { meta: {}, body: '본문만' }],
-    ];
-
-    const results = document.getElementById('results');
+    const list = document.getElementById('results');
     let failed = 0;
 
-    function report(name, ok, expected, actual) {
-      const li = document.createElement('li');
-      li.className = ok ? 'pass' : 'fail';
-      li.textContent = `${ok ? '✔' : '✘'} ${name}`;
-      if (!ok) {
-        failed++;
-        const pre = document.createElement('pre');
-        pre.textContent = `기대값:\n${expected}\n\n실제값:\n${actual}`;
-        li.append(pre);
+    for (const [name, run, expected] of cases) {
+      let actual;
+      try {
+        actual = run();
+      } catch (error) {
+        actual = `오류: ${error.message}`;
       }
-      results.append(li);
+      const ok = actual === expected;
+      if (!ok) failed += 1;
+
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      label.className = ok ? 'pass' : 'fail';
+      label.textContent = `${ok ? '통과' : '실패'} ${name}`;
+      item.append(label);
+      if (!ok) {
+        const detail = document.createElement('pre');
+        detail.textContent = `기대: ${expected}\n실제: ${actual}`;
+        item.append(detail);
+      }
+      list.append(item);
     }
 
-    for (const [name, input, expected] of cases) {
-      const actual = parseMarkdown(input);
-      report(name, actual === expected, expected, actual);
-    }
-    for (const [name, input, expected] of frontmatterCases) {
-      const actual = JSON.stringify(parseFrontmatter(input));
-      report(name, actual === JSON.stringify(expected), JSON.stringify(expected), actual);
-    }
-
-    const total = cases.length + frontmatterCases.length;
     const summary = document.getElementById('summary');
-    summary.textContent = failed ? `${total}개 중 ${failed}개 실패` : `${total}개 모두 통과`;
     summary.className = failed ? 'fail' : 'pass';
-    window.testResult = { total, failed };
+    summary.textContent = failed
+      ? `${cases.length}개 중 ${failed}개 실패`
+      : `${cases.length}개 모두 통과`;
+    console.log(summary.textContent);
   </script>
 </body>
 </html>

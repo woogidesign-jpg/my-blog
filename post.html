@@ -3,37 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="마크다운으로 쓰는 개인 블로그">
-  <meta name="theme-color" content="#000000">
-  <title>내 블로그</title>
+  <title>woogi.log</title>
+  <meta name="description" content="woogi.log의 글입니다.">
   <script>
-    // 저장된 테마를 렌더링 전에 적용해 깜빡임을 막습니다. (기본은 검은 배경 네온 테마)
+    // 첫 화면이 그려지기 전에 저장된 테마를 적용합니다 (깜빡임 방지).
     try {
       if (localStorage.getItem('theme') === 'light') document.documentElement.dataset.theme = 'light';
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="css/style.css">
+  <script type="module" src="js/theme.js"></script>
   <script type="module" src="js/post.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+
   <header class="site-header">
-    <div class="container">
-      <a class="site-title" href="./"><span class="prompt">&gt;</span>내_블로그<span class="cursor" aria-hidden="true">_</span></a>
-      <button class="theme-toggle" type="button" aria-label="라이트 모드로 전환" aria-pressed="false">☀</button>
+    <div class="container header-inner">
+      <a class="brand" href="./"><span class="brand-path">~/</span>woogi.log</a>
+      <button class="theme-toggle" type="button" aria-label="라이트 테마" aria-pressed="false">
+        <span class="theme-toggle-label">DARK</span>
+      </button>
     </div>
   </header>
 
-  <main class="container">
-    <a class="back-link" href="./">&lt;- 목록으로</a>
-    <div id="post" aria-live="polite">
-      <p class="status">글을 불러오는 중…</p>
-    </div>
+  <main id="main" class="container">
+    <nav class="breadcrumb" aria-label="이동">
+      <a href="./">← 글 목록</a>
+    </nav>
+    <article id="post" class="post" aria-live="polite"></article>
   </main>
 
   <footer class="site-footer">
     <div class="container">
-      <span>© 2026 내 블로그</span>
-      <span>HTML · CSS · JavaScript</span>
+      <p>&copy; 2026 woogi · 순수 HTML·CSS·JS로 만들었습니다</p>
     </div>
   </footer>
 </body>

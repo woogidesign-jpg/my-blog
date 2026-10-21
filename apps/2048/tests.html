@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2048 테스트 · woogi.log</title>
+  <style>
+    :root {
+      --bg: #000000;
+      --text: #d9ffec;
+      --muted: #8fb8a5;
+      --pass: #39ff14;
+      --fail: #ff4fd8;
+      --font-mono: ui-monospace, "SF Mono", Consolas, monospace;
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      line-height: 1.6;
+    }
+    h1 { font-size: 1.25rem; }
+    .summary { font-weight: 700; }
+    .pass { color: var(--pass); }
+    .fail { color: var(--fail); }
+    .detail { color: var(--muted); white-space: pre-wrap; word-break: break-all; }
+    ul { padding-left: 1.25rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>&gt; 2048 game.js 테스트</h1>
+    <p class="summary" id="summary">실행 중…</p>
+    <ul id="results"></ul>
+  </main>
+
+  <script type="module">
+    import {
+      SIZE, WIN_VALUE, createEmptyBoard, fromValues, toValues, slideLine, move,
+      getEmptyCells, spawnTile, hasValue, canMove, newGame, step, continueGame
+    } from './game.js';
+
+    const results = [];
+
+    function same(a, b) {
+      return JSON.stringify(a) === JSON.stringify(b);
+    }
+
+    function test(name, fn) {
+      try {
+        fn();
+        results.push({ name, ok: true });
+      } catch (err) {
+        results.push({ name, ok: false, message: err.message });
+        console.error(`실패: ${name}\n${err.message}`);
+      }
+    }
+
+    function expectEqual(actual, expected, label = '') {
+      if (!same(actual, expected)) {
+        throw new Error(`${label} 기대값 ${JSON.stringify(expected)}, 실제값 ${JSON.stringify(actual)}`);
+      }
+    }
+
+    // 고정 수열을 돌려주는 rng
+    function seq(...values) {
+      let i = 0;
+      return () => {
+        const v = values[i % values.length];
+        i += 1;
+        return v;
+      };
+    }
+
+    // 숫자 한 줄 → Tile 줄
+    function lineOf(values) {
+      return fromValues([values]).board[0];
+    }
+
+    function lineValues(line) {
+      return line.map((t) => (t ? t.value : 0));
+    }
+
+    // ---------- slideLine ----------
+    const slideCases = [
+      { input: [2, 2, 0, 0], output: [4, 0, 0, 0], score: 4, moved: true },
+      { input: [2, 2, 2, 0], output: [4, 2, 0, 0], score: 4, moved: true },
+      { input: [2, 2, 2, 2], output: [4, 4, 0, 0], score: 8, moved: true },
+      { input: [2, 2, 4, 0], output: [4, 4, 0, 0], score: 4, moved: true },
+      { input: [4, 0, 0, 4], output: [8, 0, 0, 0], score: 8, moved: true },
+      { input: [2, 4, 8, 16], output: [2, 4, 8, 16], score: 0, moved: false },
+      { input: [0, 0, 0, 2], output: [2, 0, 0, 0], score: 0, moved: true },
+      { input: [0, 0, 0, 0], output: [0, 0, 0, 0], score: 0, moved: false }
+    ];
+
+    slideCases.forEach(({ input, output, score, moved }) => {
+      test(`slideLine [${input}] → [${output}] (+${score}, moved:${moved})`, () => {
+        const res = slideLine(lineOf(input), 100);
+        expectEqual(lineValues(res.line), output, '줄');
+        expectEqual(res.scoreGained, score, '점수');
+        expectEqual(res.moved, moved, 'moved');
+      });
+    });
+
+    test('slideLine 합친 타일은 새 id를 받고 from에 원본 id 두 개를 기록', () => {
+      const line = lineOf([2, 2, 0, 0]); // id 1, 2
+      const res = slideLine(line, 10);
+      expectEqual(res.line[0].id, 10, '새 id');
+      expectEqual(res.nextId, 11, 'nextId');
+      expectEqual(res.merges, [{ id: 10, value: 4, index: 0, from: [1, 2] }], 'merges');
+    });
+
+    test('slideLine 입력 줄을 바꾸지 않음', () => {
+      const line = lineOf([2, 2, 2, 0]);
+      const before = JSON.stringify(line);
+      slideLine(line, 50);
+      expectEqual(JSON.stringify(line), before, '원본');
+    });
+
+    // ---------- move ----------
+    const baseValues = [
+      [2, 0, 2, 0],
+      [0, 4, 0, 4],
+      [2, 0, 0, 0],
+      [0, 0, 0, 2]
+    ];
+
+    test('move left', () => {
+      const { board, nextId } = fromValues(baseValues);
+      const res = move(board, 'left', nextId);
+      expectEqual(toValues(res.board), [
+        [4, 0, 0, 0],
+        [8, 0, 0, 0],
+        [2, 0, 0, 0],
+        [2, 0, 0, 0]
+      ]);
+      expectEqual(res.scoreGained, 12, '점수');
+      expectEqual(res.moved, true, 'moved');
+    });
+
+    test('move right', () => {
+      const { board, nextId } = fromValues(baseValues);
+      const res = move(board, 'right', nextId);
+      expectEqual(toValues(res.board), [
+        [0, 0, 0, 4],
+        [0, 0, 0, 8],
+        [0, 0, 0, 2],
+        [0, 0, 0, 2]
+      ]);
+    });
+
+    test('move up', () => {
+      const { board, nextId } = fromValues(baseValues);
+      const res = move(board, 'up', nextId);
+      expectEqual(toValues(res.board), [
+        [4, 4, 2, 4],
+        [0, 0, 0, 2],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      expectEqual(res.scoreGained, 4, '점수');
+    });
+
+    test('move down', () => {
+      const { board, nextId } = fromValues(baseValues);
+      const res = move(board, 'down', nextId);
+      expectEqual(toValues(res.board), [
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 4],
+        [4, 4, 2, 2]
+      ]);
+    });
+
+    test('move down: [2,2,2,0] 열은 아래쪽부터 짝지음', () => {
+      const { board, nextId } = fromValues([
+        [2, 0, 0, 0],
+        [2, 0, 0, 0],
+        [2, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const res = move(board, 'down', nextId);
+      expectEqual(toValues(res.board).map((r) => r[0]), [0, 0, 2, 4]);
+    });
+
+    test('move removed/merges 목적지 좌표 (right)', () => {
+      // id: (0,0)=1, (0,2)=2
+      const { board, nextId } = fromValues([
+        [2, 0, 2, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const res = move(board, 'right', nextId);
+      expectEqual(res.merges, [{ id: nextId, value: 4, row: 0, col: 3, from: [2, 1] }], 'merges');
+      expectEqual(res.removed, [{ id: 2, row: 0, col: 3 }, { id: 1, row: 0, col: 3 }], 'removed');
+    });
+
+    test('move removed 목적지 좌표 (up)', () => {
+      // id: (1,2)=1, (3,2)=2
+      const { board, nextId } = fromValues([
+        [0, 0, 0, 0],
+        [0, 0, 8, 0],
+        [0, 0, 0, 0],
+        [0, 0, 8, 0]
+      ]);
+      const res = move(board, 'up', nextId);
+      expectEqual(res.removed, [{ id: 1, row: 0, col: 2 }, { id: 2, row: 0, col: 2 }], 'removed');
+      expectEqual(res.merges[0].row, 0, 'row');
+      expectEqual(res.merges[0].col, 2, 'col');
+    });
+
+    test('이동 불가 방향: moved:false, 보드 동일', () => {
+      const values = [
+        [2, 4, 0, 0],
+        [8, 16, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ];
+      const { board, nextId } = fromValues(values);
+      const res = move(board, 'left', nextId);
+      expectEqual(res.moved, false, 'moved');
+      expectEqual(toValues(res.board), values, '보드');
+      expectEqual(res.scoreGained, 0, '점수');
+    });
+
+    test('step 이동 불가: 새 타일 없음, 상태 그대로', () => {
+      const { board, nextId } = fromValues([
+        [2, 4, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const state = { board, score: 10, nextId, won: false, keepPlaying: false, over: false };
+      const res = step(state, 'up', seq(0));
+      expectEqual(res.moved, false, 'moved');
+      expectEqual(res.spawned, [], 'spawned');
+      expectEqual(res.state, state, 'state');
+    });
+
+    test('move 입력 불변성: 원래 board가 바뀌지 않음', () => {
+      const { board, nextId } = fromValues(baseValues);
+      const before = JSON.stringify(board);
+      ['left', 'right', 'up', 'down'].forEach((dir) => move(board, dir, nextId));
+      expectEqual(JSON.stringify(board), before, '원본');
+    });
+
+    // ---------- spawnTile ----------
+    test('spawnTile rng 0.5 → 값 2, 위치 고정', () => {
+      const board = createEmptyBoard();
+      const res = spawnTile(board, seq(0, 0.5), 1);
+      expectEqual(res.tile, { id: 1, value: 2, row: 0, col: 0 });
+      expectEqual(res.nextId, 2, 'nextId');
+      expectEqual(toValues(board), toValues(createEmptyBoard()), '원본 불변');
+    });
+
+    test('spawnTile rng 0.95 → 값 4', () => {
+      const board = createEmptyBoard();
+      // 칸 선택 0.99 → 16칸 중 마지막(3,3)
+      const res = spawnTile(board, seq(0.99, 0.95), 7);
+      expectEqual(res.tile, { id: 7, value: 4, row: 3, col: 3 });
+      expectEqual(toValues(res.board)[3][3], 4, '보드 반영');
+    });
+
+    test('spawnTile 빈 칸 중에서만 선택', () => {
+      const { board } = fromValues([
+        [2, 2, 2, 2],
+        [2, 2, 2, 2],
+        [2, 2, 0, 2],
+        [2, 2, 2, 2]
+      ]);
+      const res = spawnTile(board, seq(0.7, 0.1), 100);
+      expectEqual([res.tile.row, res.tile.col], [2, 2]);
+    });
+
+    test('spawnTile 빈 칸 없음 → tile: null', () => {
+      const { board } = fromValues([
+        [2, 4, 2, 4],
+        [4, 2, 4, 2],
+        [2, 4, 2, 4],
+        [4, 2, 4, 2]
+      ]);
+      const res = spawnTile(board, seq(0.5), 100);
+      expectEqual(res.tile, null);
+      expectEqual(res.nextId, 100, 'nextId');
+    });
+
+    test('getEmptyCells 행 우선 순서', () => {
+      const { board } = fromValues([
+        [2, 0, 2, 2],
+        [2, 2, 2, 2],
+        [0, 2, 2, 2],
+        [2, 2, 2, 2]
+      ]);
+      expectEqual(getEmptyCells(board), [{ row: 0, col: 1 }, { row: 2, col: 0 }]);
+    });
+
+    // ---------- canMove / hasValue ----------
+    test('canMove 꽉 찼지만 인접 같은 값 있음 → true', () => {
+      const { board } = fromValues([
+        [2, 4, 2, 4],
+        [4, 2, 4, 2],
+        [2, 4, 2, 4],
+        [4, 2, 4, 4]
+      ]);
+      expectEqual(canMove(board), true);
+    });
+
+    test('canMove 꽉 차고 인접 같은 값 없음 → false', () => {
+      const { board } = fromValues([
+        [2, 4, 2, 4],
+        [4, 2, 4, 2],
+        [2, 4, 2, 4],
+        [4, 2, 4, 2]
+      ]);
+      expectEqual(canMove(board), false);
+    });
+
+    test('canMove 빈 칸 있음 → true', () => {
+      expectEqual(canMove(createEmptyBoard()), true);
+    });
+
+    test('hasValue', () => {
+      const { board } = fromValues([[2048, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]);
+      expectEqual(hasValue(board, WIN_VALUE), true, '2048 있음');
+      expectEqual(hasValue(board, 1024), false, '1024 없음');
+    });
+
+    // ---------- newGame / step ----------
+    test('newGame: 4×4 보드에 타일 2개, 점수 0', () => {
+      const { state, spawned } = newGame(seq(0, 0.5, 0, 0.95));
+      expectEqual(state.board.length, SIZE, '행 수');
+      expectEqual(spawned.length, 2, 'spawned');
+      expectEqual(toValues(state.board)[0].slice(0, 2), [2, 4], '첫 타일들');
+      expectEqual(getEmptyCells(state.board).length, 14, '빈 칸');
+      expectEqual([state.score, state.won, state.keepPlaying, state.over], [0, false, false, false]);
+    });
+
+    test('step: 점수 가산 + 새 타일 1개', () => {
+      const { board, nextId } = fromValues([
+        [2, 2, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const state = { board, score: 6, nextId, won: false, keepPlaying: false, over: false };
+      const res = step(state, 'left', seq(0, 0.5));
+      expectEqual(res.moved, true, 'moved');
+      expectEqual(res.scoreGained, 4, 'scoreGained');
+      expectEqual(res.state.score, 10, 'score');
+      expectEqual(res.spawned.length, 1, 'spawned');
+      expectEqual(toValues(res.state.board)[0], [4, 2, 0, 0], '보드');
+    });
+
+    test('step: 2048 생성 시 won:true', () => {
+      const { board, nextId } = fromValues([
+        [1024, 1024, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const state = { board, score: 0, nextId, won: false, keepPlaying: false, over: false };
+      const res = step(state, 'left', seq(0, 0.5));
+      expectEqual(res.state.won, true, 'won');
+      expectEqual(res.scoreGained, 2048, 'score');
+      expectEqual(res.state.over, false, 'over');
+    });
+
+    test('step: 마지막 이동 후 막히면 over:true', () => {
+      const { board, nextId } = fromValues([
+        [0, 4, 8, 16],
+        [2, 8, 16, 32],
+        [4, 16, 32, 64],
+        [8, 32, 64, 128]
+      ]);
+      // up: 0열이 [2,4,8,0]으로 이동 → (3,0) 빈 칸에 4 생성 (rng 0, 0.95)
+      const state = { board, score: 0, nextId, won: false, keepPlaying: false, over: false };
+      const res = step(state, 'up', seq(0, 0.95));
+      expectEqual(toValues(res.state.board).map((r) => r[0]), [2, 4, 8, 4], '0열');
+      expectEqual(res.state.over, true, 'over');
+    });
+
+    test('step: 이미 won이면 계속 true 유지', () => {
+      const { board, nextId } = fromValues([
+        [2, 2, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]
+      ]);
+      const state = { board, score: 0, nextId, won: true, keepPlaying: true, over: false };
+      const res = step(state, 'left', seq(0, 0.5));
+      expectEqual([res.state.won, res.state.keepPlaying], [true, true]);
+    });
+
+    test('continueGame: keepPlaying = true, 원본 불변', () => {
+      const { state } = newGame(seq(0, 0.5));
+      const next = continueGame(state);
+      expectEqual(next.keepPlaying, true, 'next');
+      expectEqual(state.keepPlaying, false, '원본');
+    });
+
+    // ---------- 결과 표시 ----------
+    const list = document.getElementById('results');
+    results.forEach((r) => {
+      const li = document.createElement('li');
+      li.className = r.ok ? 'pass' : 'fail';
+      li.textContent = `${r.ok ? 'PASS' : 'FAIL'} ${r.name}`;
+      if (!r.ok) {
+        const detail = document.createElement('div');
+        detail.className = 'detail';
+        detail.textContent = r.message;
+        li.appendChild(detail);
+      }
+      list.appendChild(li);
+    });
+    const passed = results.filter((r) => r.ok).length;
+    const summary = document.getElementById('summary');
+    summary.textContent = `통과 ${passed} / 전체 ${results.length}`;
+    summary.className = `summary ${passed === results.length ? 'pass' : 'fail'}`;
+    document.title = `${passed === results.length ? 'PASS' : 'FAIL'} ${passed}/${results.length} · 2048 테스트`;
+  </script>
+</body>
+</html>
