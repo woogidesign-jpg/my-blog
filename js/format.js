@@ -13,6 +13,9 @@ export function formatDate(value) {
   const match = String(value ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return null;
   const [, year, month, day] = match;
+  // 2026-02-30 처럼 달력에 없는 날짜는 날짜로 취급하지 않습니다.
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return null;
   return { iso: `${year}-${month}-${day}`, label: `${year}년 ${Number(month)}월 ${Number(day)}일` };
 }
 

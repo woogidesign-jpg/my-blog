@@ -8,8 +8,9 @@ let memoryBest = 0;
 export function loadBest() {
   try {
     const raw = localStorage.getItem(KEY);
-    const value = Number.parseInt(raw, 10);
-    if (Number.isFinite(value) && value > memoryBest) memoryBest = value;
+    // 숫자만으로 된 값만 받습니다 ('123junk' 같은 손상된 값은 무시).
+    const value = /^\d+$/.test(raw ?? '') ? Number(raw) : NaN;
+    if (Number.isSafeInteger(value) && value > memoryBest) memoryBest = value;
   } catch (e) {
     // 저장소 접근 불가: 메모리 값만 사용합니다.
   }
