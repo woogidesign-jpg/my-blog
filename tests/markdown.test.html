@@ -91,7 +91,7 @@
       ['이미지', () => parseInline('![대체](img.png "제목")'), '<img src="img.png" alt="대체" title="제목" loading="lazy">'],
 
       // 보안
-      ['HTML 태그 이스케이프', () => parseMarkdown('<script>alert("x")</script>'), '<p>&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</p>'],
+      ['HTML 태그 이스케이프', () => parseMarkdown('<script>alert("x")<\/script>'), '<p>&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;</p>'],
       ['& 이스케이프', () => parseInline('a & b'), 'a &amp; b'],
       ['javascript: 링크 제거', () => parseInline('[누르기](javascript:alert(1))'), '누르기'],
       ['대소문자 섞은 javascript: 제거', () => parseInline('[x](JavaScript:alert(1))'), 'x'],
