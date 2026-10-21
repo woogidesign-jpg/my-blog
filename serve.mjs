@@ -1,14 +1,14 @@
-// 로컬 개발용 정적 파일 서버 (의존성 없음). 실행: node serve.mjs [포트]
-
+// 로컬 개발용 정적 서버 (의존성 없음)
+// 사용법: node serve.mjs [포트]
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(fileURLToPath(new URL('.', import.meta.url)));
-const PORT = Number(process.argv[2] || process.env.PORT || 8000);
+const root = resolve(fileURLToPath(new URL('.', import.meta.url)));
+const port = Number(process.argv[2]) || 8000;
 
-const TYPES = {
+const types = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -21,29 +21,47 @@ const TYPES = {
   '.jpeg': 'image/jpeg',
   '.gif': 'image/gif',
   '.webp': 'image/webp',
-  '.ico': 'image/x-icon',
+  '.ico': 'image/x-icon'
 };
 
-createServer(async (req, res) => {
+// 요청 경로를 루트 안의 실제 파일 경로로 바꿉니다. 루트 밖이면 null.
+function toFilePath(urlPath) {
+  let decoded;
   try {
-    const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-    let file = normalize(join(ROOT, pathname));
-    // 루트 밖의 파일은 제공하지 않습니다.
-    if (file !== ROOT && !file.startsWith(ROOT + sep)) {
-      res.writeHead(403).end('Forbidden');
-      return;
-    }
-    if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+    decoded = decodeURIComponent(urlPath);
+  } catch {
+    return null;
+  }
+  const filePath = normalize(join(root, decoded));
+  if (filePath !== root && !filePath.startsWith(root + sep)) return null;
+  return filePath;
+}
 
-    const body = await readFile(file);
+const server = createServer(async (req, res) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
+  let filePath = toFilePath(pathname);
+
+  if (!filePath) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('403 접근할 수 없습니다');
+    return;
+  }
+
+  try {
+    const info = await stat(filePath);
+    if (info.isDirectory()) filePath = join(filePath, 'index.html');
+    const body = await readFile(filePath);
     res.writeHead(200, {
-      'Content-Type': TYPES[extname(file).toLowerCase()] || 'application/octet-stream',
-      'Cache-Control': 'no-cache',
+      'Content-Type': types[extname(filePath).toLowerCase()] || 'application/octet-stream',
+      'Cache-Control': 'no-store'
     });
     res.end(body);
   } catch {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not Found');
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('404 파일을 찾을 수 없습니다');
   }
-}).listen(PORT, () => {
-  console.log(`http://localhost:${PORT}`);
+});
+
+server.listen(port, () => {
+  console.log(`http://localhost:${port} 에서 실행 중입니다 (종료: Ctrl+C)`);
 });
